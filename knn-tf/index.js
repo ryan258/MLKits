@@ -4,9 +4,17 @@ const tf = require('@tensorflow/tfjs')
 const loadCSV = require('./load-csv')
 
 function knn(features, labels, predictionPoint, k) {
+  const { mean, variance } = tf.moments(features, 0)
+
+  const scaledPrediction = predictionPoint.sub(mean).div(variance.pow(0.5))
+
   return (
     features
-      .sub(predictionPoint)
+      .sub(mean)
+      .div(variance.pow(0.5))
+      // .sub(predictionPoint)
+      .sub(scaledPrediction)
+      // now that we've standardized, business as usual
       .pow(2)
       .sum(1)
       .pow(0.5)
@@ -27,7 +35,7 @@ let { features, labels, testFeatures, testLabels } = loadCSV('kc_house_data.csv'
   // instruct the loader to give us 2 different sets of data
   // 1 for train, the other for testing - enter # of records to test
   splitTest: 10, // use a test of 10 records - so we get 10 records out as a test set, then the rest as a training set
-  dataColumns: ['lat', 'long'], //FEATURES EXCEPT FOR 10 IN OUR TEST GROUP columns to grab (by header name)
+  dataColumns: ['lat', 'long', 'sqft_lot', 'sqft_living'], //FEATURES EXCEPT FOR 10 IN OUR TEST GROUP columns to grab (by header name)
   labelColumns: ['price'] //LABEL like data columns, but extracts 1+ column and assigns them to our 'labels' data set - so... things we're trying to predict
 })
 
@@ -64,7 +72,30 @@ labels = tf.tensor(labels)
 // Guess: 1421200 1085000
 // Error: -30.98617511520737
 
-//! ITERATION #3 - now we'll loop over all our test features
+//! ITERATION #3 - now we'll loop over all our test samples...? features?
+// testFeatures.forEach((testPoint, index) => {
+//   const result = knn(features, labels, tf.tensor(testPoint), 10)
+//   // look at the correct row of testLabels
+//   const err = (testLabels[index][0] - result) / testLabels[index][0]
+//   // console.log('Guess:', result, testLabels[0][0])
+//   console.log('Error:', err * 100)
+// })
+
+// Error: -30.98617511520737
+// Error: -52.95661953727506
+// Error: -9.552941176470588
+// Error: -28.528495575221243
+// Error: -6.069828722002635
+// Error: -9.855653270993358
+// Error: -11.176432291666668
+// Error: 43.34094616639478
+// Error: -19.536472310319592
+// Error: -5.603238866396762
+
+// OK so obviously there is more to predicting home values than just lat/long...
+// it's time to look at more factors!
+
+//! ITERATION #4 - let's consider the sqft_lot feature and implement STANDARDIZATION!
 testFeatures.forEach((testPoint, index) => {
   const result = knn(features, labels, tf.tensor(testPoint), 10)
   // look at the correct row of testLabels
